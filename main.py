@@ -5,7 +5,7 @@ from hashlib import sha256
 
 
 class Hasher():
-    def hash_topic(self, topic: dict):
+    def hash_topic(self, topic: dict) -> bytes:
         h = sha256()
         h.update(topic['topic_name'].encode('utf-8'))
         h.update(topic['replies_number'].encode('utf-8'))
@@ -50,7 +50,31 @@ class ForumParser:
 
         return topics_data
 
+    def parse_messages(self, topic_url: str, topic_response: str) -> list[dict]:
+        soup = BeautifulSoup(topic_response, 'lxml')
 
+        messages = soup.find_all(class_='message-cell message-cell--main')
+        users_details = soup.find_all(class_='message-userDetails')
+
+        msg_with_users = zip(messages, users_details)
+
+        msgs_data = []
+        for message in msg_with_users:
+            msg_text = message[0].find(class_='bbWrapper').text
+            msg_datetime = re.search(r'datetime=\"(.+?)\"', str(message[0].find('time'))).group(1)
+            msg_author_name = re.search(r'itemprop=\"name\">(.+?)<', str(message[1].find('h4').find('a'))).group(1)
+            msg_url = topic_url + '#' + message[0].find('a').get('href')
+
+            msg_data = {
+                'msg_text': msg_text,
+                'msg_datetime': msg_datetime,
+                'msg_author_name': msg_author_name,
+                'msg_url': msg_url
+            }
+
+            msgs_data.append(msg_data)
+
+        return msgs_data
 
 
 def main():
@@ -61,8 +85,14 @@ def main():
     parsed_topics = parser.parse_topics(response)
 
     hasher = Hasher()
-    hash = hasher.hash_topic(parsed_topics[0])
-    print(hash)
+
+    topics_hashes = []
+    for topic in parsed_topics:
+        topic_hash = hasher.hash_topic(topic)
+        topics_hashes.append(topic_hash)
+
+        topic_response = session.get(topic['topic_url']).text
+        parsed_messages = parser.parse_messages(topic['topic_url'], topic_response)
 
 
 if __name__ == '__main__':
