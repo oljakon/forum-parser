@@ -13,6 +13,15 @@ class Hasher():
 
         return h.digest()
 
+    def hash_msg(self, msg: dict) -> bytes:
+        h = sha256()
+        h.update(msg['msg_text'].encode('utf-8'))
+        h.update(msg['msg_datetime'].encode('utf-8'))
+        h.update(msg['msg_author_name'].encode('utf-8'))
+        h.update(msg['msg_url'].encode('utf-8'))
+
+        return h.digest()
+
 
 class ForumParser:
     def get_tor_session(self) -> requests.Session:
@@ -87,12 +96,18 @@ def main():
     hasher = Hasher()
 
     topics_hashes = []
+    msg_hashes = []
+
     for topic in parsed_topics:
         topic_hash = hasher.hash_topic(topic)
         topics_hashes.append(topic_hash)
 
         topic_response = session.get(topic['topic_url']).text
         parsed_messages = parser.parse_messages(topic['topic_url'], topic_response)
+
+        for message in parsed_messages:
+            msg_hash = hasher.hash_msg(message)
+            msg_hashes.append(msg_hash)
 
 
 if __name__ == '__main__':
