@@ -4,7 +4,6 @@ import re
 
 
 class ForumParser:
-
     def get_tor_session(self):
         session = requests.session()
         session.proxies = {'http': 'socks5h://127.0.0.1:9050',
@@ -30,12 +29,12 @@ class ForumParser:
             if 'K' in replies_number:
                 replies_number = int(replies_number[:-1]) * 1000
 
-            topic_data = [
-                {'topic_name': topic_name},
-                {'topic_url': topic_url},
-                {'last_msg_datetime': last_msg_datetime},
-                {'replies_number': replies_number}
-            ]
+            topic_data = {
+                'topic_name': topic_name,
+                'topic_url': topic_url,
+                'last_msg_datetime': last_msg_datetime,
+                'replies_number': replies_number
+            }
 
             topics_data.append(topic_data)
 
