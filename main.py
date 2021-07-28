@@ -1,6 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+from hashlib import sha256
+
+
+class Hasher():
+    def hash_topic(self, topic: dict):
+        h = sha256()
+        h.update(topic['topic_name'].encode('utf-8'))
+        h.update(topic['replies_number'].encode('utf-8'))
+        h.update(topic['last_msg_datetime'].encode('utf-8'))
+
+        return h.digest()
 
 
 class ForumParser:
@@ -19,15 +30,14 @@ class ForumParser:
 
         topics = zip(topics_main, topics_meta, topics_latest)
 
-
         topics_data = []
         for topic in topics:
-            topic_name = topic[0].find('a').string
+            topic_name = str(topic[0].find('a').string)
             topic_url = 'https://mipped.com' + topic[0].find('a').get('href')
             last_msg_datetime = re.search(r'datetime=\"(.+?)\"', str(topic[2].find('a'))).group(1)
-            replies_number = topic[1].find('dd').string
+            replies_number = str(topic[1].find('dd').string)
             if 'K' in replies_number:
-                replies_number = int(replies_number[:-1]) * 1000
+                replies_number = replies_number[:-1] + '000'
 
             topic_data = {
                 'topic_name': topic_name,
@@ -41,12 +51,18 @@ class ForumParser:
         return topics_data
 
 
+
+
 def main():
     parser = ForumParser()
     session = parser.get_tor_session()
     response = session.get('https://miped.ru/f/whats-new/posts').text
 
     parsed_topics = parser.parse_topics(response)
+
+    hasher = Hasher()
+    hash = hasher.hash_topic(parsed_topics[0])
+    print(hash)
 
 
 if __name__ == '__main__':
