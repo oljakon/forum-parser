@@ -4,13 +4,13 @@ import re
 
 
 class ForumParser:
-    def get_tor_session(self):
+    def get_tor_session(self) -> requests.Session:
         session = requests.session()
         session.proxies = {'http': 'socks5h://127.0.0.1:9050',
                            'https': 'socks5h://127.0.0.1:9050'}
         return session
 
-    def parse_topics(self, response):
+    def parse_topics(self, response: str) -> list[dict]:
         soup = BeautifulSoup(response, 'lxml')
 
         topics_main = soup.find_all(class_='structItem-cell structItem-cell--main')
@@ -47,7 +47,6 @@ def main():
     response = session.get('https://miped.ru/f/whats-new/posts').text
 
     parsed_topics = parser.parse_topics(response)
-    print(parsed_topics)
 
 
 if __name__ == '__main__':
