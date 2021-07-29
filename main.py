@@ -35,6 +35,7 @@ class Hasher():
 class ForumParser:
     def get_tor_session(self) -> requests.Session:
         session = requests.session()
+        # Подключение через tor на 9050 порту
         session.proxies = {'http': 'socks5h://127.0.0.1:9050',
                            'https': 'socks5h://127.0.0.1:9050'}
         return session
@@ -48,7 +49,7 @@ class ForumParser:
 
         return last_page
 
-    def get_all_pages(self, url: str, last_page: str):
+    def get_all_pages(self, url: str, last_page: str) -> list:
         last_page_number = int(re.search(r'page-(.+)', last_page).group(1))
         urls = []
 
@@ -164,8 +165,10 @@ def main():
     users_hashes = []
 
     parsed_topics_list = []
+
     topics_last_page = parser.get_last_page_number(response_text)
     parsed_topics_list.extend(parser.parse_topics(response_text))
+
     if topics_last_page:
         all_topics_pages = parser.get_all_pages(response_url, topics_last_page)
         for topics_page_url in all_topics_pages:
@@ -178,14 +181,17 @@ def main():
 
         parsed_messages_list = []
         parsed_users_list = []
+
         topic_response = session.get(topic['topic_url']).text
         msg_last_page = parser.get_last_page_number(topic_response)
-        parsed_messages_list.extend(parser.parse_topics(topic_response))
-        parsed_users_list.extend(parser.parse_topics(topic_response))
+
+        parsed_messages_list.extend(parser.parse_messages(topic_response))
+        parsed_users_list.extend(parser.parse_users(topic_response))
+
         if msg_last_page:
             all_msg_pages = parser.get_all_pages(topic['topic_url'], msg_last_page)
             for msg_page_url in all_msg_pages:
-                parsed_messages = parser.parse_topics(session.get(msg_page_url).text)
+                parsed_messages = parser.parse_messages(session.get(msg_page_url).text)
                 parsed_messages_list.extend(parsed_messages)
                 parsed_users = parser.parse_users(topic_response)
                 parsed_users_list.extend(parsed_users)
