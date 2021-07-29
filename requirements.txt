@@ -1,0 +1,5 @@
+beautifulsoup4==4.9.3
+certifi==2021.5.30
+lxml==4.6.3
+PySocks==1.7.1
+requests==2.26.0

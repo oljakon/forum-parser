@@ -8,6 +8,7 @@ from typing import Optional
 
 class Hasher():
     def __init__(self, topics_hashes: list, msg_hashes: list, users_hashes: list):
+        # Массивы с сохраненными хэшами
         self.topics_hashes = topics_hashes
         self.msg_hashes = msg_hashes
         self.users_hashes = users_hashes
@@ -45,7 +46,8 @@ class Hasher():
 
 
 class ForumParser:
-    def __init__(self, parsed_topics_list: list, parsed_messages_list: list, parsed_users_list: list):
+    def __init__(self, parsed_topics_list: list[dict], parsed_messages_list: list[dict], parsed_users_list: list[dict]):
+        # Массивы словарей с полученными данными
         self.parsed_topics_list = parsed_topics_list
         self.parsed_messages_list = parsed_messages_list
         self.parsed_users_list = parsed_users_list
