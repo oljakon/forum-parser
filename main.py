@@ -7,6 +7,11 @@ from typing import Optional
 
 
 class Hasher():
+    def __init__(self, topics_hashes: list, msg_hashes: list, users_hashes: list):
+        self.topics_hashes = topics_hashes
+        self.msg_hashes = msg_hashes
+        self.users_hashes = users_hashes
+
     def hash_topic(self, topic: dict) -> bytes:
         h = sha256()
         h.update(topic['topic_name'].encode('utf-8'))
@@ -33,6 +38,11 @@ class Hasher():
 
 
 class ForumParser:
+    def __init__(self, parsed_topics_list: list, parsed_messages_list: list, parsed_users_list: list):
+        self.parsed_topics_list = parsed_topics_list
+        self.parsed_messages_list = parsed_messages_list
+        self.parsed_users_list = parsed_users_list
+
     def get_tor_session(self) -> requests.Session:
         session = requests.session()
         # Подключение через tor на 9050 порту
@@ -151,58 +161,49 @@ class ForumParser:
 
 
 def main():
-    parser = ForumParser()
+    parser = ForumParser(parsed_topics_list=[], parsed_messages_list=[], parsed_users_list=[])
     url = 'https://miped.ru/f/whats-new/posts'
     session = parser.get_tor_session()
     response = session.get(url)
     response_text = response.text
     response_url = response.url
 
-    hasher = Hasher()
-
-    topics_hashes = []
-    msg_hashes = []
-    users_hashes = []
-
-    parsed_topics_list = []
+    hasher = Hasher(topics_hashes=[], msg_hashes=[], users_hashes=[])
 
     topics_last_page = parser.get_last_page_number(response_text)
-    parsed_topics_list.extend(parser.parse_topics(response_text))
+    parser.parsed_topics_list.extend(parser.parse_topics(response_text))
 
     if topics_last_page:
         all_topics_pages = parser.get_all_pages(response_url, topics_last_page)
         for topics_page_url in all_topics_pages:
             parsed_topics = parser.parse_topics(session.get(topics_page_url).text)
-            parsed_topics_list.extend(parsed_topics)
+            parser.parsed_topics_list.extend(parsed_topics)
 
-    for topic in parsed_topics_list:
+    for topic in parser.parsed_topics_list:
         topic_hash = hasher.hash_topic(topic)
-        topics_hashes.append(topic_hash)
-
-        parsed_messages_list = []
-        parsed_users_list = []
+        hasher.topics_hashes.append(topic_hash)
 
         topic_response = session.get(topic['topic_url']).text
         msg_last_page = parser.get_last_page_number(topic_response)
 
-        parsed_messages_list.extend(parser.parse_messages(topic_response))
-        parsed_users_list.extend(parser.parse_users(topic_response))
+        parser.parsed_messages_list.extend(parser.parse_messages(topic_response))
+        parser.parsed_users_list.extend(parser.parse_users(topic_response))
 
         if msg_last_page:
             all_msg_pages = parser.get_all_pages(topic['topic_url'], msg_last_page)
             for msg_page_url in all_msg_pages:
                 parsed_messages = parser.parse_messages(session.get(msg_page_url).text)
-                parsed_messages_list.extend(parsed_messages)
+                parser.parsed_messages_list.extend(parsed_messages)
                 parsed_users = parser.parse_users(topic_response)
-                parsed_users_list.extend(parsed_users)
+                parser.parsed_users_list.extend(parsed_users)
 
-        for message in parsed_messages_list:
+        for message in parser.parsed_messages_list:
             msg_hash = hasher.hash_msg(message)
-            msg_hashes.append(msg_hash)
+            hasher.msg_hashes.append(msg_hash)
 
-        for user in parsed_users_list:
+        for user in parser.parsed_users_list:
             user_hash = hasher.hash_user(user)
-            users_hashes.append(user_hash)
+            hasher.users_hashes.append(user_hash)
 
 
 if __name__ == '__main__':
