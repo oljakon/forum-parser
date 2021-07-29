@@ -36,6 +36,13 @@ class Hasher():
 
         return h.digest()
 
+    # Хэши двух одинаковых записей совпадают
+    # Если хэш отсутствует в массиве хэшей, значит, запись новая
+    def is_hash_new(self, hash: bytes, hash_array: list) -> bool:
+        if hash in hash_array:
+            return False
+        return True
+
 
 class ForumParser:
     def __init__(self, parsed_topics_list: list, parsed_messages_list: list, parsed_users_list: list):
@@ -170,40 +177,42 @@ def main():
 
     hasher = Hasher(topics_hashes=[], msg_hashes=[], users_hashes=[])
 
+    parsed_topics = parser.parse_topics(response_text)
     topics_last_page = parser.get_last_page_number(response_text)
-    parser.parsed_topics_list.extend(parser.parse_topics(response_text))
 
     if topics_last_page:
         all_topics_pages = parser.get_all_pages(response_url, topics_last_page)
         for topics_page_url in all_topics_pages:
-            parsed_topics = parser.parse_topics(session.get(topics_page_url).text)
-            parser.parsed_topics_list.extend(parsed_topics)
+            parsed_topics.extend(parser.parse_topics(session.get(topics_page_url).text))
+            for topic in parsed_topics:
+                topic_hash = hasher.hash_topic(topic)
+                if hasher.is_hash_new(topic_hash, hasher.topics_hashes):
+                    parser.parsed_topics_list.append(topic)
+                    hasher.topics_hashes.append(topic_hash)
 
     for topic in parser.parsed_topics_list:
-        topic_hash = hasher.hash_topic(topic)
-        hasher.topics_hashes.append(topic_hash)
-
         topic_response = session.get(topic['topic_url']).text
         msg_last_page = parser.get_last_page_number(topic_response)
 
-        parser.parsed_messages_list.extend(parser.parse_messages(topic_response))
-        parser.parsed_users_list.extend(parser.parse_users(topic_response))
+        parsed_messages = parser.parse_messages(topic['topic_url'], topic_response)
+        parsed_users = parser.parse_users(topic_response)
 
         if msg_last_page:
             all_msg_pages = parser.get_all_pages(topic['topic_url'], msg_last_page)
             for msg_page_url in all_msg_pages:
-                parsed_messages = parser.parse_messages(session.get(msg_page_url).text)
-                parser.parsed_messages_list.extend(parsed_messages)
-                parsed_users = parser.parse_users(topic_response)
-                parser.parsed_users_list.extend(parsed_users)
+                parsed_messages.extend(parser.parse_messages(msg_page_url, session.get(msg_page_url).text))
+                for message in parsed_messages:
+                    msg_hash = hasher.hash_msg(message)
+                    if hasher.is_hash_new(msg_hash, hasher.msg_hashes):
+                        parser.parsed_messages_list.append(message)
+                        hasher.msg_hashes.append(msg_hash)
 
-        for message in parser.parsed_messages_list:
-            msg_hash = hasher.hash_msg(message)
-            hasher.msg_hashes.append(msg_hash)
-
-        for user in parser.parsed_users_list:
-            user_hash = hasher.hash_user(user)
-            hasher.users_hashes.append(user_hash)
+                parsed_users.extend(parser.parse_users(topic_response))
+                for user in parsed_users:
+                    user_hash = hasher.hash_user(user)
+                    if hasher.is_hash_new(user_hash, hasher.msg_hashes):
+                        parser.parsed_users_list.append(user)
+                        hasher.users_hashes.append(user_hash)
 
 
 if __name__ == '__main__':
