@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from hashlib import sha256
+import base64
 
 
 class Hasher():
@@ -85,6 +86,42 @@ class ForumParser:
 
         return msgs_data
 
+    def parse_users(self, topic_response: str) -> list[dict]:
+        soup = BeautifulSoup(topic_response, 'lxml')
+
+        users_details = soup.find_all(class_='message-userDetails')
+        users_extra = soup.find_all(class_='message-userExtras')
+        user_avatar_jpg = soup.find_all(class_='message-avatar-wrapper')
+
+        users = zip(users_details, users_extra, user_avatar_jpg)
+
+        users_data = []
+        for user in users:
+            user_name = re.search(r'itemprop=\"name\">(.+?)<', str(user[0].find('h4').find('a'))).group(1)
+            if user_name in [item['user_name'] for item in users_data]:
+                continue
+            user_reputation = re.search(r'<dt>Реакции</dt>\n<dd>(.+?)</dd', str(user[1])).group(1)
+            user_msg_count = re.search(r'<dt>Сообщения</dt>\n<dd>(.+?)</dd', str(user[1])).group(1)
+            try:
+                img = user[2].find('img')
+                user_avatar = img.get('data-pagespeed-lazy-src') or img.get('src')
+                if user_avatar:
+                    user_avatar_url = 'https://mipped.com' + str(user_avatar)
+                    user_avatar = base64.b64encode(requests.get(user_avatar_url).content)
+            except AttributeError:
+                user_avatar = None
+
+            user_data = {
+                'user_name': user_name,
+                'user_reputation': user_reputation,
+                'user_msg_count': user_msg_count,
+                'user_avatar': user_avatar
+            }
+
+            users_data.append(user_data)
+
+        return users_data
+
 
 def main():
     parser = ForumParser()
@@ -104,6 +141,7 @@ def main():
 
         topic_response = session.get(topic['topic_url']).text
         parsed_messages = parser.parse_messages(topic['topic_url'], topic_response)
+        parsed_users = parser.parse_users(topic_response)
 
         for message in parsed_messages:
             msg_hash = hasher.hash_msg(message)
