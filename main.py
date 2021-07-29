@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import re
 from hashlib import sha256
 import base64
+from typing import Optional
 
 
 class Hasher():
@@ -37,6 +38,24 @@ class ForumParser:
         session.proxies = {'http': 'socks5h://127.0.0.1:9050',
                            'https': 'socks5h://127.0.0.1:9050'}
         return session
+
+    def get_last_page_number(self, response: str) -> Optional[str]:
+        soup = BeautifulSoup(response, 'lxml')
+        try:
+            last_page = soup.find(class_='pageNavSimple-el pageNavSimple-el--last').get('href')
+        except AttributeError:
+            last_page = None
+
+        return last_page
+
+    def get_all_pages(self, url: str, last_page: str):
+        last_page_number = int(re.search(r'page-(.+)', last_page).group(1))
+        urls = []
+
+        for page in range(2, last_page_number + 1):
+            urls.append(url + 'page-' + str(page))
+
+        return urls
 
     def parse_topics(self, response: str) -> list[dict]:
         soup = BeautifulSoup(response, 'lxml')
@@ -132,10 +151,11 @@ class ForumParser:
 
 def main():
     parser = ForumParser()
+    url = 'https://miped.ru/f/whats-new/posts'
     session = parser.get_tor_session()
-    response = session.get('https://miped.ru/f/whats-new/posts').text
-
-    parsed_topics = parser.parse_topics(response)
+    response = session.get(url)
+    response_text = response.text
+    response_url = response.url
 
     hasher = Hasher()
 
@@ -143,23 +163,40 @@ def main():
     msg_hashes = []
     users_hashes = []
 
-    for topic in parsed_topics:
+    parsed_topics_list = []
+    topics_last_page = parser.get_last_page_number(response_text)
+    parsed_topics_list.extend(parser.parse_topics(response_text))
+    if topics_last_page:
+        all_topics_pages = parser.get_all_pages(response_url, topics_last_page)
+        for topics_page_url in all_topics_pages:
+            parsed_topics = parser.parse_topics(session.get(topics_page_url).text)
+            parsed_topics_list.extend(parsed_topics)
+
+    for topic in parsed_topics_list:
         topic_hash = hasher.hash_topic(topic)
         topics_hashes.append(topic_hash)
 
+        parsed_messages_list = []
+        parsed_users_list = []
         topic_response = session.get(topic['topic_url']).text
-        parsed_messages = parser.parse_messages(topic['topic_url'], topic_response)
-        parsed_users = parser.parse_users(topic_response)
+        msg_last_page = parser.get_last_page_number(topic_response)
+        parsed_messages_list.extend(parser.parse_topics(topic_response))
+        parsed_users_list.extend(parser.parse_topics(topic_response))
+        if msg_last_page:
+            all_msg_pages = parser.get_all_pages(topic['topic_url'], msg_last_page)
+            for msg_page_url in all_msg_pages:
+                parsed_messages = parser.parse_topics(session.get(msg_page_url).text)
+                parsed_messages_list.extend(parsed_messages)
+                parsed_users = parser.parse_users(topic_response)
+                parsed_users_list.extend(parsed_users)
 
-        for message in parsed_messages:
+        for message in parsed_messages_list:
             msg_hash = hasher.hash_msg(message)
             msg_hashes.append(msg_hash)
 
-        for user in parsed_users:
+        for user in parsed_users_list:
             user_hash = hasher.hash_user(user)
             users_hashes.append(user_hash)
-
-    print(users_hashes)
 
 
 if __name__ == '__main__':
