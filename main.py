@@ -5,6 +5,7 @@ from hashlib import sha256
 import base64
 from typing import Optional
 
+website = WEBSITE_URL
 
 class Hasher():
     def __init__(self, topics_hashes: list, msg_hashes: list, users_hashes: list):
@@ -171,7 +172,7 @@ class ForumParser:
 
 def main():
     parser = ForumParser(parsed_topics_list=[], parsed_messages_list=[], parsed_users_list=[])
-    url = 'https://miped.ru/f/whats-new/posts'
+    url = WEBSITE_URL
     session = parser.get_tor_session()
     response = session.get(url)
     response_text = response.text
