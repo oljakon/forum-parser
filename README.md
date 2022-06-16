@@ -1,5 +1,5 @@
 # forum-parser
-Hackers forum parser
+Forum parser with Tor
 
 We collect data about cybercriminals' activity from a group of underground hacking forums, which helps us later to identify and gather evidence about them. We do this by parsing the contents of these forums using Python scripts and the magical power of Regular Expressions.
 We start by parsing information about the activity on the forum, by visiting the “feed” page, where we can see the new messages in threads (Topics) and when they were posted. Next step is to go to each of these topics and parse all the messages inside it. The result of this task is 3 lists of dictionaries: one for all the topics we parsed from the feed page, one for all the messages we parse from each of the topics we parsed in the feed page, and one for all the forum members who posted messages in the pages we parsed.
