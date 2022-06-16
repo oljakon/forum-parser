@@ -172,7 +172,7 @@ class ForumParser:
 
 def main():
     parser = ForumParser(parsed_topics_list=[], parsed_messages_list=[], parsed_users_list=[])
-    url = WEBSITE_URL
+    url = website
     session = parser.get_tor_session()
     response = session.get(url)
     response_text = response.text
